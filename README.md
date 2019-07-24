@@ -1,1 +1,3 @@
-Data-Science-and-Big-data-Analysis
+# Data Science and Big data Analysis
+
+**taught by Phil Lewis**
