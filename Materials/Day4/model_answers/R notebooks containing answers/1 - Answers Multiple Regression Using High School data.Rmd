@@ -1,0 +1,140 @@
+---
+title: "Predicting Science Scores"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(readxl)
+library(dplyr)
+student_data <- read_excel("hsb2.xlsx")
+
+race_labels = c("hispanic", "asian", "african-american", "white")
+prog_labels = c("general","academic","vocational")
+
+student_data <- student_data %>% 
+  mutate(gender = factor(female, labels=c("M","F")),
+         social_economic_group = factor(ses, labels=c("L","M","H")),
+         race = factor(race, labels=race_labels),
+         program = factor(prog, labels=prog_labels)) %>%
+  select(-female, -prog, -ses)
+```
+
+```{r}
+plot(science ~ math, data=student_data)
+```
+```{r}
+plot(science ~ gender, data=student_data)
+```
+
+##### 2. Build a bivariate model using `math` score alone to predict `science` score. Plot your fit and interpret the fit results: coefficient for `math` and  $R^2$ value.
+
+```{r}
+model1 <- lm(science~math,data=student_data)
+summary(model1)
+```
+The coefficient for `math` is `0.667` this means for each 1 mark increase in a students math score, we predict a 0.667 mark increase in `science` score.
+The formula to predict `science` score from `math` score is:
+
+`science = 16.72 + 0.667 * math`
+
+The Rsquared value is 0.396. This means the model accounts for 39.6% of the variance observed  in the science scores.
+
+##### 3. Build a multivariate model using `math` and `gender`  to predict `science` score. Interpret the fit coefficients and and  $R^2$ value.
+
+```{r}
+model2 <- lm(science ~ math + gender, data=student_data)
+summary(model2)
+```
+The formula to predict `science` score from `math` and `genderF` variables is:
+
+`science = 18.10 + 0.664 * math + -2.20 * genderF`
+
+where `genderF` has a value of 1 for a female and 0 for a male.
+
+The coefficient for `math` is `0.664` this means for each 1 mark increase in a students math score, we predict a 0.664 mark increase in `science` score.
+
+The coefficient for `genderF` is `-2.20` this means that for a given `math` score we predict a `science` score `2.2` marks lower if the student is female.
+
+The Rsquared value is 0.4083. This means the model accounts for 40.8% of the variance observed  in the science scores (slightly higher than the case with `math` score alone.)
+
+##### 4. Make a plot of `science` vs `math` and add fit lines corresponding for `male` and `female` cases.
+
+An easy way to do this is to calculate the formula of the line of fit for males and females:
+
+`science = 18.10 + 0.664 * math + -2.20 * genderF`
+
+So for males (`genderF=0`):
+
+`science = 18.10 + 0.664 * math `
+
+intercept: 18.10 and slope: 0.664
+
+So for females (`genderF=1`):
+
+`science = 18.10 + 0.664 * math + -2.20`
+`        = 16.90 + 0.664 * math `
+intercept: 16.90 and slope: 0.664
+
+```{r}
+plot(science ~ math, data=student_data)
+abline(a=18.10, b=0.664, col="blue")
+abline(a=16.90, b=0.664, col="red")
+
+```
+
+##### 5. Build a multivariate model using `math`, `read`, `gender`, and `race`  to predict `science` score. How have the different `race` categories been included in the model. Interpret the coefficents for `race` and comment on the significance of the variable coefficients.
+
+
+```{r}
+model3 <- lm(science ~ math + read + gender + race, data=student_data)
+summary(model3)
+```
+Race has been encoded as 3 dummy variables. Conasidering the race factors we see these correspond to the following:
+
+```
+hispanic:          raceasian=0, raceafrican-american=0, racewhite=0
+asian:             raceasian=1, raceafrican-american=0, racewhite=0
+african-american:  raceasian=0, raceafrican-american=0, racewhite=0
+white:             raceasian=0, raceafrican-american=0, racewhite=0
+```
+Therefore the baseline for race is `hispanic` and the coefficients on e.g. raceasian is the change in science grade predicted between a `hispanic` and `asian` student.
+
+We could interpret this as expecting:
+
+```
+asian students            on average perform 1.26 marks higher than hispanic students
+african-american students on average perform 2.02 marks lower  than hispanic students
+white students            on average perform 4.22 marks higher than hispanic students
+```
+The significance levels tell us whether the result of a significance test comparing each coefficient with the null hypothesis that the true value is 0 (so there is no linear relationship between predictor and response.)
+
+```
+Coefficients:
+                      Pr(>|t|)    
+(Intercept)           2.17e-05 ***
+math                  8.24e-07 ***
+read                  1.12e-06 ***
+genderF               0.07000 .  
+raceasian             0.62667    
+raceafrican-american  0.33506    
+racewhite             0.00802 ** 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+```
+We see that we can only reject the null hypothesis for the math, read, racewhite coefficients at the 0.05 significance level.
+
+##### 6. Use the $F$ test to compare the model from 5. with an extended model that includes the `write` score. Is there evidence that including this gives a  improvement at a alpha = 0.05 significance level.
+
+```{r}
+model4 <- lm(science ~ math + read + gender + race + write, data=student_data)
+summary(model4)
+```
+We now perform the ANOVA analysis of the two models:
+```{r}
+anova(model4,model3)
+```
+
+The resulting F-statistic has a p-value of 0.0001671 much lower than our default significant level of 0.05, so the decrease in the residuals we observed when adding `write`into our model  is calculated to be very unlikely under the null hypothesis. Therefore we accept the hypothesis that `write` adds predictive poower to our model.
+

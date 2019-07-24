@@ -1,0 +1,58 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+#Q1i
+#prediction
+#ii
+crabs<-read.csv("crabs.csv")
+#iii
+nrow(crabs)
+#iv
+names(crabs)
+mean(crabs$body.size)
+#v
+median(crabs$major.claw)
+#vi
+sum(crabs[which(crabs$major.side=="Right"),]$major.claw)/sum(crabs$major.claw)
+#Q2 i
+crabs$crab.id<-NULL
+#ii
+plot(body.size~major.claw,data=crabs,main="Body measurements of crabs",xlab="major claw size (cm) ",ylab="body size (cm)")
+
+abline(model.lm)
+#iii
+model.lm<-lm(body.size~major.claw,data=crabs)
+summary(model.lm)
+#iv
+coef(model.lm)
+#y=3.0746084 +0.4985336 *major.claw 
+#v
+head(crabs)
+predict(model.lm,newdata = data.frame(major.claw=10))
+
+crabs[which(floor(crabs$body.size)==8),]
+#Row index:	25		Body size:8.10			Claw size:6.62
+#4i
+library("dplyr")
+res <- cor(crabs[,unlist(lapply(crabs, is.numeric))])
+round(res,2) #0.91
+#ii
+library(corrplot)
+corrplot(cor(crabs[,unlist(lapply(crabs, is.numeric))]))
+#iii
+model1.lm<-lm(body.size~major.claw+claw.ratio,data=crabs)
+anova(model1.lm)
+names(model1.lm)
+```
+
+
+```{r}
+raw<-read.csv("raw.csv")
+raw
+crabs
+names(raw)
+names(crabs)
+```
+

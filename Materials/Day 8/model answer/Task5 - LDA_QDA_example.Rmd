@@ -1,0 +1,156 @@
+---
+title: "5 LDA (and QDA) Classification"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Dataset used: Iris Species Identification
+
+The iris dataset describes a set of measurements made on 150 iris flowers of three different species. The width and length of both petals and septals are recorded (4 measurements.) 
+
+To illustrate the data we can use two of the measurements to draw a scatterplot, using different colours for the different iris species.
+Note `unclass` converts a factor to its integer representation. This has the effect of selecting a different colour for each factor.
+
+```{r}
+levels(iris$Species)
+```
+```{r}
+plot(iris$Petal.Length, iris$Petal.Width, pch=24, 
+     bg=c("red","green","blue")[unclass(iris$Species)], 
+     main="Iris Species\n R: Setosa, G: Versicolor, B: Virginica")
+
+```
+
+We can see that the three species are fairly well separated by eye, although there is some overlap between green and blue types.
+
+To help us understand the techniques we will make a simplified data set with two measurements only (septal width and length), and two species only (versicolor and virginica).
+
+```{r}
+iris_simple = (subset(iris,Species=="virginica" | Species=="versicolor"))
+iris_simple = iris_simple[,c("Species","Sepal.Length","Sepal.Width")]
+iris_simple$Species <- factor(iris_simple$Species)
+head(iris_simple)
+```
+
+
+## Classification 1: with logistic regression
+
+First let's revise how Logistic Regression on the simplified dataset. First let's create the binary variable used for fitting. This will store 1 for versicolor, and 0 for virginica. 
+
+Note the `ifelse` function is particularly handy for this.
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+Species.binary = ifelse(iris_simple$Species=="versicolor",1,0)
+```
+
+Now we can perform logical regression:
+```{r}
+logistic.model=glm(Species.binary~Sepal.Length+Sepal.Width,data=iris_simple,family=binomial)
+```
+
+And calculate the predictions. If the predicted response from the logistic regression is greater than 0.5, we predict the class corresponding to the 1's in the column, in this case "versicolor", otherwise we predict "virginica".
+```{r}
+logistic.model.prediction <- 
+  ifelse( predict(logistic.model,type='resp') > 0.5,
+                     'versicolor', 
+                     'virginica') 
+                     
+```
+
+We use the table to tabulate the performance. In this case we add some labels using `=` to note the rows are the predictions, and columns are the actual cases:
+
+```{r}
+table(predicted=logistic.model.prediction,actual=iris_simple$Species)
+```
+
+We can use the sum command to find the number of correctly classified and misclassified flowers.
+
+```{r}
+correct = sum(logistic.model.prediction == iris_simple$Species)
+correct
+incorrect = sum(logistic.model.prediction != iris_simple$Species)
+incorrect
+```
+
+## Linear Discriminant Analyis with binary output
+
+A more powerful tool for classification is linear discriminant analysis. This first looks for the best way to combine the input variables to form a new set of measures that best discriminates between the groups in the data points. 
+You are encouraged to read the the textbook to discover the mathematical framework. Here we will present how it is used only.
+
+We create the model using the `lda` function, in a similar style to the `lm` and `glm` functions.
+
+```{r message=FALSE, warning=FALSE}
+library(MASS)
+lda.model = lda(Species ~ Sepal.Length+Sepal.Width, data = iris_simple)
+```
+
+We can access the predicted classes in the following way:
+
+```{r}
+lda.model.prediction <- predict(lda.model)$class
+```
+
+And examine the output:
+
+```{r}
+table(predicted=lda.model.prediction,actual=iris_simple$Species)
+```
+
+For a binary case we see the two models produce the same predictions.
+
+```{r}
+correct = sum(lda.model.prediction == iris_simple$Species)
+correct
+incorrect = sum(lda.model.prediction != iris_simple$Species)
+incorrect
+```
+
+## Linear Discriminant Analyis with non-binary output
+
+LDA is not limited to binary classifications. We use it in exactly the same way to classify into 3 (or more) groups. Here we apply it to the full iris data with 3 species.
+
+```{r}
+lda.model = lda(Species ~ Sepal.Length+Sepal.Width, data = iris)
+```
+
+Access the predicted classes:
+
+```{r}
+lda.model.prediction <- predict(lda.model)$class
+```
+
+Examine the output:
+
+```{r}
+table(predicted=lda.model.prediction,actual=iris$Species)
+```
+
+Final performance:
+
+```{r}
+correct = sum(lda.model.prediction == iris$Species)
+correct
+incorrect = sum(lda.model.prediction != iris$Species)
+incorrect
+```
+### Task
+
+Repeat the above analysis using all four input measurements as predictors.
+
+Does this improve the model?
+
+
+### Task
+
+We can perform QDA (Quadratic Discriminant Analysis) using the function `qda` instead of the `lda` function. Repeat the exercise. Does QDA perform better than LDA?
+
+
+### Think...
+Here we are measuring our performance using our training data. Why is this a bad idea, and how could we improve our methodology?
+
+(Hint. look at the help for the `lda` function. What does the parameter CV do?)?
+

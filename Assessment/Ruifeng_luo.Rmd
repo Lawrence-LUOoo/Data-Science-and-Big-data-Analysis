@@ -1,0 +1,589 @@
+---
+title: "Data Science and Big Data Analysis Project"
+author: "Ruifeng Luo"
+output:
+  html_document:
+    df_print: paged
+---
+
+Link to data source: "https://www.kaggle.com/c/titanic"
+
+```{r message=FALSE, warning=FALSE}
+# Load packages
+library(MASS)
+library(dplyr)
+library(readr)
+library(corrplot)
+library(tree)
+library(leaps)
+library(ISLR)
+library(randomForest)
+library(ggplot2)
+library(caret)
+library(gridExtra)
+```
+
+### Introduction:
+
+Sinking of the Royal Mail Ship (RMS) Titanic is one of the most well-known tragedy in the history. It resulted in the deaths of more than 1500 people.
+
+There are many factors contribute to people surviving in the sinking. For example, one of the reasons that cause people died is due to insufficient lifeboats for the passenger and crew. And also, gender, children, and different classes also played important role to the survive.
+
+In this report, We will investigate on surviving rate of different people based on analyse existing data. Applying the tools of machine learning techniques, we are able to predict survived rate of different passengers.
+
+We are using datasets below:
+
+- training set (train.csv)
+  The train dataset is used to build our machine learning models. And the models are     based on different features.
+
+
+### Implementation:
+
+##### TASKS i):
+
+Firstly, the goal is to take insights of dataset, exploring data and proprocessing data. Since there are many missing data in the train dataset, it could cause incorrect prediction and classification in the training model. Then,proprocessing data is to removing missing value and drop columns that is useless for dataset.
+
+```{r message=FALSE, r,results='hide'}
+# GET DATA
+
+# load data into R
+train<-read_csv("train.csv")
+```
+
+```{r}
+# EXPLORE DATA
+
+# number of rows and columns
+dim(train)
+
+# checking na values in each columns
+colSums(is.na(train))
+
+```
+
+
+```{r}
+# PREPROCESS DATA
+
+# removing na value in the rows of Age
+train<-train[which(!is.na(train$Age)),]
+
+# drop PassengerId, Ticket, Name and Cabin as it is useless for our data. 
+train<-dplyr::select(train,-PassengerId,-Ticket,-Cabin,-Name)
+
+# Convert column into numeric type
+train$Sex<-ifelse(train$Sex=="female",1,0)
+
+# Convert Embarked column into numeric type
+train$Embarked[which(train$Embarked=="C")]=0
+train$Embarked[which(train$Embarked=="Q")]=1
+train$Embarked[which(train$Embarked=="S")]=2
+train$Embarked<-as.numeric(train$Embarked)
+
+# Drop na value in the row of Embarked
+train<-train[which(!is.na(train$Embarked)),]
+
+# show first few data
+head(train)
+```
+
+After preprocessing data, the train dataset has 8 numeric features below,
+
+ - Survived, 0 = No, 1 = Yes
+ - Pclass, ticket class, 1 = first class, 2 = second class, 3 = third class
+ - Sex, gender, 1=female, 2=male
+ - Age, age of passengers
+ - SibSp, number of siblings or spouses aboard for each passenger
+ - Parch, number of parents or children aboard for each passenger
+ - Fare, fare for each passenger
+ - Embarked, Port of Embarkation, 0 = C, 1 = Q, 2 = S
+
+
+```{r}
+# Plot correlation matrix only with numeric features
+corrplot(cor(train)) 
+```
+
+Based on the correlation matrix, the Pclass, Sex, Fare and embarked have stronger corelatioship with Survived than Age, SibSp and Parch. And also, we can see Pclass has strong correlation with Fare. This is due to linear relationship between Pclass and Fare.
+
+We will create new feature family size from SibSp and Parch. And also, we will change Fare and Survived into factor type.
+
+```{r}
+# Creating new features
+
+# family size
+train$family_size<-train$SibSp+train$Parch+1
+
+# Divided Fare into 4 classes, first-class, second-class, third-class, and others
+train$fare_class<-cut(train$Fare, 
+                      breaks=c(quantile(train$Fare,probs = seq(0, 1, by = 0.25))),
+                      include.lowest=TRUE)
+
+# Change the type of Survived to binary factor for training data
+train$Survived_class <- ifelse(train$Survived == 0, "Died", "Survived")
+train$Survived_class<-as.factor(train$Survived_class)
+```
+
+
+
+
+```{r}
+#Split Data into 50:50 test and training rows
+#set seed with 3
+set.seed(3)
+
+# number of rows in each dataset
+n=nrow(train)%/%2
+
+# Sampling row from train data without replacement
+train_rows<-sample(1:nrow(train),n,replace = FALSE)
+
+# Splitting data into 50:50 
+test<-train[-train_rows,]
+train<-train[train_rows,]
+```
+
+
+Here we use mean value to find relationships between survived to other features
+
+```{r}
+# Find the mean values of Survived passengers based on different features
+
+# Pclass and Survived
+result_Pclass<-aggregate(train$Survived, list(train$Pclass), mean)
+colnames(result_Pclass)<-c("Pclass","mean_Survived")
+
+#ggplot
+Pclass_Survived<-ggplot(result_Pclass,aes(x=Pclass,y=mean_Survived),color="steelblue")+
+  geom_point()
+
+# Fair classes and Survived
+result_Fare<-aggregate(train$Survived, list(train$fare_class), mean)
+colnames(result_Fare)<-c("fare_class","mean_Survived")
+
+# ggplot
+Fare_Survived<-ggplot(data=train,mapping=aes(fare_class,fill=as.factor(Survived)))+
+              geom_bar()+ 
+              xlab("Fare Class")+
+              ylab("Number of Passengers")+
+              ggtitle("Survived vs Fare Class")+
+              scale_fill_discrete(name = "", labels = c("Died", "Survived"))
+
+# Arrange two plots in one graph
+grid.arrange(Pclass_Survived, Fare_Survived, nrow = 1, widths = 1:2)
+```
+
+As we can seen from the plot above, different Passenger class have different survived rate. With people living in first class, they have higher chance of surviving compared to other classes. And it can be proved in the fare class. With more expensive tickets(higher class), people are likely to survive.
+
+```{r}
+#Sex and Survived
+result_Sex<-aggregate(train$Survived, list(train$Sex), mean)
+colnames(result_Sex)<-c("Sex","mean_Survived")
+result_Sex[order(result_Sex$mean_Survived,decreasing=T),]
+```
+
+Gender also played important role in surviving. Female has much higher survived possibility than male.
+
+
+```{r}
+# SibSp and Survived
+result_SibSp<-aggregate(train$Survived, list(train$SibSp), mean)
+colnames(result_SibSp)<-c("SibSp","mean_Survived")
+
+# ggplot
+ggplot(result_SibSp,aes(x=SibSp,y=mean_Survived),color="steelblue")+
+  geom_point()
+```
+
+Fewer siblings or spouses aboard the Titanic are more likely to survive.
+
+```{r}
+# Parch and Survived
+result_Parch<-aggregate(train$Survived, list(train$Parch), mean)
+colnames(result_Parch)<-c("Parch","mean_Survived")
+
+# ggplot
+ggplot(result_Parch,aes(x=Parch,y=mean_Survived),color="steelblue")+
+  geom_point()
+```
+
+It also indicates in the Parch that passenger has fewer parents or children, and they  have higher surviving possibility.
+
+```{r}
+# Family size and Survived
+result_Family<-aggregate(train$Survived, list(train$family_size), mean)
+colnames(result_Family)<-c("family_size","mean_Survived")
+
+# ggplot
+ggplot(result_Family,aes(x=family_size,y=mean_Survived),color="steelblue")+
+  geom_point()
+```
+
+And also, fewer family size have high probability of surviving
+
+
+We can then visualize these relationships with survived rate below to find any valuable and hidden information inside each feature.
+```{r}
+# Data visualization
+
+# Pclass and Survived
+p1<-ggplot(data=train, mapping=aes(as.factor(Pclass),fill=as.factor(Survived)))+
+  geom_bar()+ 
+  xlab("Passenger Class")+
+  ylab("Number of Passengers")+
+  ggtitle("Survived vs Pclass")+
+  scale_fill_discrete(name = "", labels = c("Died", "Survived"))
+
+# Sex and Survived
+p2<-ggplot(data=train, mapping=aes(as.factor(Sex),fill=as.factor(Survived)))+
+  geom_bar()+ 
+  xlab("Gender")+
+  ylab("Number of Passengers")+
+  ggtitle("Survived vs Sex")+
+  scale_fill_discrete(name = "", labels = c("Died", "Survived"))
+
+# Parch and Survived
+p3<-ggplot(data=train, mapping=aes(family_size, fill=as.factor(Survived)))+
+  geom_bar()+ 
+  xlab("number of of Family size")+
+  ylab("Number of Passengers")+
+  ggtitle("Survived vs Family Size")+
+  scale_fill_discrete(name = "", labels = c("Died", "Survived"))
+
+
+# Arrange two plots in one graph
+grid.arrange(p1, p2, p3,nrow = 2)
+```
+
+
+```{r}
+# Plot the Survived vs Age
+ggplot(data=train, mapping=aes(Age, fill=as.factor(Survived))) +
+  geom_histogram(bins=30)+
+  xlab("Age")+
+  ylab("Number of Passengers")+
+  ggtitle("Age vs Survived")+
+  facet_grid(.~ifelse(train$Sex==1,"Female","Male"))+
+  scale_fill_discrete(name = "", labels = c("Died", "Survived"))
+```
+
+Comparing to the surviving rate of different ages, it can be found that male have higher probability of death than female. Furthermore, people aged from 15 to 35 are the most likely to be died, and then people aged from 35 to 59 following. People aged 15 or below and 60 or above contributed less.
+
+```{r}
+# Plot the graph based on the Port of Embarkation, C,Q,S.
+
+# convert Embarked nummeric value to C,Q,S
+emk<-factor(train$Embarked,levels=c(0,1,2),labels=c("C","Q","S"))
+
+# ggplot
+ggplot(data=train, mapping=aes(emk, fill=as.factor(Survived)))+
+  geom_bar()+xlab("Embarked")+
+  ylab("Number of Passengers")+
+  ggtitle("Survived vs Embarked")+
+  scale_fill_discrete(name = "", labels = c("Died", "Survived"))
+```
+
+As we can see from the graph above, most of people from S(Southampton) have higher death rate than any others.
+
+Here we use t test to evaluate the difference between family size of people died and people survived. And also, we will test the difference between different ages.
+```{r}
+# t-test
+# Here
+t.test(train$family_size ~ train$Survived_class,var.equal=TRUE)
+t.test(train$Age ~ train$Survived_class,var.equal=TRUE)
+```
+According to tests we performed, p-value of family size >0.05, which has no strong evidence to reject the null hypothesis and there is no significant difference. However, the test for age indicates the null hypothesis is rejected and there is significant difference as p-value<0.05.
+
+
+##### TASKS ii):
+
+Considering we are only interested in predicting whether people survived on the titanic, we will apply logistic classification to our data.
+
+As to the logistic model, we build three models with different features to find the best performance model.
+
+```{r}
+# Single predictor
+glm.fit_single<-glm(Survived~Age,data=train,family=binomial)
+plot(Survived~Age,data=train)
+curve(predict(glm.fit_single,data.frame(Age=x),type="response"),add=TRUE)
+
+# summary of logistic model
+summary(glm.fit_single)
+```
+From the plot above, it shows the logistic line shows the probability that seperating the people survived or not. And this model gives us AIC value 478.27. We then use the AIC vaule to compare with other logistic models
+
+
+Since Fare_class is the same as Fare and family_size is same as SibSp and Parch, it is useless to include Fare,SibSb and Parch in the formula. And we also drop Survived_class.
+```{r}
+# Full predictor
+glm.fit_full<-glm(Survived~.-fare_class -SibSp -Parch -Survived_class,data=train,family=binomial)
+
+# summary of logistic model
+summary(glm.fit_full)
+
+```
+
+From both single predictor model and full predictor model, the model with full features has better performance than the model with single predictor by comparing with AIC value(the lower AIC, the better fit). This is mainly because it introduced some necessary features into models, and it helps determine significant difference in the model. In this case, Pclass, Sex,family_size and Age are the features that are necessary to determine those significant difference since p-value is far less than 0.001. However, Embarked and fare_class is hard to reject null hypothesis as p-value is much larger.
+
+
+To find the intermediate model, we apply leaps and stepwise method to find the important features from dataset.
+```{r}
+# Applying leaps method
+
+# Since family_size are the same as SibSp and Parch, then it can drop the SibSp and Parch. So does the Fare and fare_class
+regsubsets.out <- regsubsets( Survived ~ .-fare_class -SibSp -Parch -Survived_class,
+                              data = train,
+                              nbest = 1,
+                              nvmax = NULL,
+                              force.in = NULL, force.out = NULL,
+                              method = 'exhaustive')
+# Arrange plots in one graph
+par(mfrow=c(1,2))
+
+# plot leaps graph
+plot(regsubsets.out, scale='bic', main='BIC')
+plot(regsubsets.out, scale='adjr2', main='Adjr2')
+
+```
+
+From leaps graph, the model including features, Pclass,Sex,Age, has the better performance as this model gives the least BIC value. The lower BIC, the better fit.
+
+However, the graph with Adjr2 suggests different models including Pclass, Sex,Age,Fare and family_size. In this case, we will compare both models and pick the better one later. The higher Adjust R^2, the better fit.
+
+
+```{r}
+# stepwise method
+ln.min<-lm(Survived~1,data=train)
+ln.max<-lm(Survived~.-fare_class -SibSp -Parch -Survived_class,data=train)
+scp<-list(lower=ln.min,upper=ln.max)
+
+ln.select<-stepAIC(ln.max,
+                   direction = "backward",
+                   scope=scp,
+                   steps=1)
+
+ln.select
+```
+
+From leaps, the stepwise method gives the model Survived ~ Pclass + Sex + Age + Fare + family_size, and we investigate this model further.
+
+```{r}
+# Logistic regression Model
+glm.fit_leaps <- glm(Survived ~ Pclass + Sex + Age, 
+                     data = train,family=binomial)
+
+
+glm.fit_stepwise <- glm(Survived ~ Pclass + Sex + Age + Fare + family_size, 
+                        data = train,family=binomial)
+
+# Print cofficients and AIC values
+cat("leaps' model AIC:",summary(glm.fit_leaps)$aic)
+
+coef(glm.fit_leaps)
+cat("stepwise' model AIC:",summary(glm.fit_stepwise)$aic)
+
+coef(glm.fit_stepwise)
+```
+According to the summary, we can establish the model with equations using coefficients. 
+
+Furthermore, comparing to AIC value from both models, the model from  stepwise is better than the model from leaps. In this case, we can choose the stepwise model as the optimal model.
+
+
+```{r}
+# Cross validation with different models
+
+cv_model1 <- train(
+  Survived_class~Age, 
+  data = train, 
+  method = "glm",
+  family = "binomial",
+  trControl = trainControl(method = "cv", number = 10)
+)
+
+cv_model2 <- train(
+  Survived_class~. -Fare -SibSp -Parch -Survived, 
+  data = train, 
+  method = "glm",
+  family = "binomial",
+  trControl = trainControl(method = "cv", number = 10)
+)
+
+cv_model3 <- train(
+  Survived_class ~ Pclass + Sex + Age + Embarked + family_size, 
+  data = train, 
+  method = "glm",
+  family = "binomial",
+  trControl = trainControl(method = "cv", number = 10)
+)
+
+
+# extract out of sample performance measures
+model_set = list(
+  model1 = cv_model1, 
+  model2 = cv_model2, 
+  model3 = cv_model3
+)
+
+# Store results in variable
+results <- data.frame(summary(resamples(model_set))$statistics$Accuracy)
+results
+
+# Plot the results 
+plot(results$Mean,ylim=seq(0,1),xlab="The number of Model",ylab="Mean")
+points(results$X1st.Qu., pch=2)
+points(results$X3rd.Qu., pch=2)
+
+```
+
+As we can see from the plot above, the model using single predictor has nearly zero standard error compare with others. As we includes more predictors, we can see more standard error for models.
+Furthermore, the model with full predictors has nearly the same performance as optimal model. This is mainly because many features in the full predictor's model are useless. Only part of features contributed in the model.
+
+
+```{r}
+# Evaluation using glm.fit 
+glm.fit<-glm.fit_stepwise
+
+#predict test dataset
+pred<- glm.fit %>% predict(test, type = "response")
+pred <- ifelse(pred > 0.5, 1, 0)
+
+# Make table counts
+tab_glm<-table(predicted=pred, actual=test$Survived)
+
+# calculate the misclassification
+mis_glm<-1-sum(diag(tab_glm))/sum(tab_glm)
+cat("misclassification rate: ",mis_glm)
+
+```
+
+According to confusion matrix, the misclassification rate when predicting train data is higher than predicating in test data. This indicates model is better when predicting test data. 
+
+
+##### TASK iii):
+
+Firstly, I set up training model of Decision tree.
+
+And also, since we are interested in the results of "Died" and "Survived", then we change type of Survived feature to factor
+```{r}
+# Decision tree
+
+# Apply decision tree model and plot the decision tree
+tree.fit <- tree(Survived_class ~. -Survived, train)
+plot(tree.fit)
+text(tree.fit, pretty = 0, cex=0.5, col='red') 
+
+# check misclassification in the summary
+cat("misclassification rate:",summary(tree.fit)$misclass[1]/summary(tree.fit)$misclass[2])
+
+```
+From the decision tree, it consists of 12 nodes and each nodes suggest whether people survived or not.
+
+From information in summary, the misclassification error rate is about 0.14. However, We cannot not compare this rate with logistical's misclassification rate since both models used different dataset, train and test. And we will investigate further with pruning method to optimise decision tree model.
+
+We will then choose tree size to optimise decision tree' performance using misclassification rate as method.
+
+```{r}
+# Pruning method
+set.seed(3)
+# Cross-Validation For Choosing Tree Complexity
+cv.fit <- cv.tree(tree.fit, FUN = prune.misclass)
+
+# plot dev vs tree size
+plot(cv.fit$size, cv.fit$dev, type = "b")
+```
+
+From the graph of dev vs size, it indicates the deviance of the model declined as tree size increased. In average, the least deviance is at 12 trees. Then, in this case, we can choose it to perform prune.fit. The lower deviance, the better fit.
+
+
+```{r}
+
+# Pruning the decision tree with the node of least deviance and plot it
+prune.fit <- prune.misclass(tree.fit, best = 12)
+
+# predict on test data
+tree.pred <- predict(prune.fit, test, type = "class")
+
+# Confusion matrix table
+tab_tree<-table(predict=tree.pred,actual=test$Survived_class)
+
+# calculate misclassification rate
+mis_tree<-1-sum(diag(tab_tree))/sum(tab_tree)
+cat("misclassification rate: ",mis_tree)
+```
+It is found that decision tree has better performance than pruning decision tree according to misclassification error rate. The main reason is decision tree used train dataset compared to pruning decision tree used test dataset
+
+However,logistic model has worse performance than decision tree by comparing rate 0.197 to 0.2275.
+
+
+We then build bagged decision tree model, and compare it with pruning decision tree.
+```{r}
+# Bagging Method
+set.seed(3)
+#build bagged decision tree model with 5 predictors at each split
+bag.fit <- randomForest(Survived_class ~. -Survived, data = train,mtry=4, importance = TRUE)
+```
+
+```{r}
+set.seed(3)
+# CLASSIFICATION
+rf_tree <- randomForest(Survived_class ~. -Survived, data = train,ntree = 2000,mtry=4)
+# rf_tree$err.rate[,1] stores out of bag misclassification rate
+# (also contains columns for error by class)
+plot(rf_tree$err.rate[,1], xlab="N Trees", ylab="MCR")
+
+```
+
+From the plot, misclassification error rate declined to the least value at the beginning.Then it increased to constant value which is above the least misclassification rate.
+Here we will take 480 as number of trees since it shows the least MCR.
+
+```{r}
+# Optimal Bagging tree
+
+#set seed
+set.seed(3)
+
+# build optimal bagged tree
+bag.fit_optimal <- randomForest(Survived_class ~.-Survived, data = train,mtry=4,ntrees=480, importance = TRUE)
+
+# Evaluate performance on the test data
+bag.pred<- predict(bag.fit_optimal, newdata = test)
+
+# Confusion matrix table
+bag.tab<-table(predict=bag.pred,actual=test$Survived_class)
+
+# calculate misclassification rate
+mis_bag<-1-sum(diag(bag.tab))/sum(bag.tab)
+cat("misclassification rate: ",mis_bag)
+
+```
+Based on the misclassification rate 0.194, it shows the better performance in the bagged tree than in the pruning tree.
+
+##### TASK iii):
+
+```{r}
+# In summary, compare performance of optimal logistic, pruning tree, and bagging tree.
+
+# combine misclassification rate
+misclassification_rate<-c(mis_glm,mis_tree, mis_bag)
+# combine names
+Models<-c("Logistic classification","Decision Tree with Pruning","Bagged Decision Tree")
+# construct data frame
+summary_df<-data.frame(Models,misclassification_rate)
+
+# print out data frame
+summary_df
+
+# ggplot
+ggplot(summary_df,aes(x=Models,y=misclassification_rate),color="steelblue")+
+  geom_point()
+```
+
+According to the graph, Bagged Decision Tree has the best performance, which has about 0.193 misclassification rate. Then both Decision Tree with pruning and Logistic classification following with 0.1967 and 0.22 respectively. 
+
+The reason that decision tree performs better than logistic classification is decision tree divide the space into smaller regions. Comparing to this, logistic classification applies single line in the space to divide into two regions. A single linear boundary has more limitation when perform predication than decision tree. In the titanic example, all the data are well separated into smaller regions based on the features using decision tree, which lead to better classification performance.
+
+However, trees may overfit the training data when they are modelling a training set to a point of high granularity. It is eaiser to overfit data than logistic classification model.
+
+To avoid overfitting, we need to have enough data and use different test dataset from training dataset.
+
+The reason Bagged Decision tree better than Decision tree with pruning is number of trees we used to build our models. In pruning method, it uses cross validation to find the best model with least misclassification error rate. However, Bagged decision tree are taking advantage of large number of tree and take the best model among those trees. Since Bagged tree perform large number of tree models, it has much more precision than pruning method.

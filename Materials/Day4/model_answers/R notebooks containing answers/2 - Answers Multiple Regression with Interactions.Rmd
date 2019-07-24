@@ -1,0 +1,227 @@
+---
+title: "Predicting Science Scores"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(readxl)
+library(dplyr)
+library(texreg)
+
+student_data <- read_excel("hsb2.xlsx")
+
+race_labels <- c("hispanic", "asian", "african-american", "white")
+prog_labels <- c("general","academic","vocational")
+
+student_data <-  mutate(student_data, gender = factor(female, labels=c("M","F")))
+student_data <-  mutate(student_data, social_economic_group = factor(ses,  
+                                                              labels=c("L","M","H")))
+student_data <-  mutate(student_data, race = factor(race, labels=race_labels))
+student_data <-  mutate(student_data, program = factor(prog, labels=prog_labels))
+student_data <-  mutate(student_data, school_type = factor(schtyp,   
+                                                           labels=c("public","private")))
+
+student_data <-  select(student_data, -female, -prog, -ses, -schtyp)
+
+head(student_data)
+```
+```{r}
+# for comparison I am going to build both models
+model1 <- lm(science ~ math+gender,data=student_data)
+model2 <- lm(science ~ math*gender,data=student_data)
+screenreg(list(model1,model2),digits=4)
+```
+
+The two prediction formulas for science score are:
+```
+# model 1
+science = 18.1 + 0.664*math -2.20*genderF
+
+# model 2
+science = 17.2 + 0.681*math -0.463*genderF -0.0330*math*genderF
+```
+This means for male students (genderF=0) we predict:
+```
+# model 1
+science = 18.1 + 0.664*math 
+
+# model 2
+science = 17.2 + 0.681*math 
+```
+and for female students we predict
+```
+# model 1
+science = 18.1 + 0.664*math -2.20
+        = 15.9 + 0.664*math
+        
+# model 2
+science = 17.2 + 0.681*math -0.463 -0.0330*math
+        = 16.7 + 0.648*math  
+```
+Model 1 assumes the relationship between science and math is independent of gender. For each 1 mark increase in math our predicted science grade increases by 0.664 marks.
+
+Model 2 allows an the science~maths relationship to be dependent on gender (there is an interaction between the effect of math and gender on science score). For each 1 mark increase in math our predicted science grade increases by 0.681 marks for males, and 0.648 for females.
+
+To see if there is evidence that this improves the prediction we can look at the Rsquared values. In this case we see there is only a slight improvement in these from 0.4083 to 0.0485 and so the inclusion of the interaction does not seem to have helped our prediction much (Rsq = 1 means the model fits our data perfectly)
+
+Let`s look at the p-value of the interaction term (we can see the full information in the summary):
+
+```{r}
+summary(model2)
+```
+The p-value shows the calculated probability that under the null hypothesis the value of the math:genderF coefficient is 0 that we could see (due to the random sample of students selected) a coefficient of size -0.03. In this case the p-val is 0.78 or 78% so we cannot reject this null hypothesis.
+
+We can also perform this test way to check this is to compare to the model without the interaction term using an anova test, to see if the decrease in variance in the residuals could also be by chance under the null hypothesis that there is no interaction.
+
+```{r}
+anova(model1,model2)
+```
+
+In this case the test shows the same result: that 78% of the time we might see the slight improvement in performance (smaller residuals) under the null hypothesis that there is no interaction. Therefore our analysis cannot provide evidence that the relationship between science and math scores is different for females and males.
+
+Finally lets plot these relationships. We will create a two panel plot showing the two models, and add trendlines for males and females. To do this we will use the formulas calculated above, and the abline function which can also accept an intercept `a` and slope `b` arguments:
+
+```{r}
+par(mfrow=c(1,2))
+plot(science~math, data=student_data,
+     xlim=c(0,100),ylim=c(0,100),pch='.',
+     main="science~math+gender")
+abline(a=18.1, b=0.664, col='blue')
+abline(a=15.9, b=0.664, col='red')
+legend(0,100,legend=c('M','F'),col=c('blue','red'), lty= 1)
+
+plot(science~math, data=student_data,xlim=c(0,100),ylim=c(0,100),pch='.',
+     main="science~math*gender")
+abline(a=17.2, b=0.681, col='blue')
+abline(a=16.7, b=0.648, col='red')
+legend(0,100,legend=c('M','F'),col=c('blue','red'), lty= 1)
+```
+We see that for the data region the two fitted lines are very close:
+```{r}
+par(mfrow=c(1,2))
+plot(science~math, data=student_data, pch='.', main="science~math+gender")
+abline(a=18.1, b=0.664, col='blue')
+abline(a=15.9, b=0.664, col='red')
+legend(0,100,legend=c('M','F'),col=c('blue','red'), lty= 1)
+
+plot(science~math, data=student_data,pch='.',main="science~math*gender")
+abline(a=17.2, b=0.681, col='blue')
+abline(a=16.7, b=0.648, col='red')
+legend(0,100,legend=c('M','F'),col=c('blue','red'), lty= 1)
+```
+### Using polynomials
+
+```{r}
+# for comparison I am going to build both models
+polymodel1 <- lm(science ~ poly(math,1),data=student_data)
+polymodel2 <- lm(science ~ poly(math,2),data=student_data)
+polymodel3 <- lm(science ~ poly(math,3),data=student_data)
+polymodel4 <- lm(science ~ poly(math,4),data=student_data)
+
+screenreg(list(polymodel1,polymodel2,polymodel3,polymodel4),digits=4)
+```
+As an example let plot the 3rd order polynomial fit (`poly3`):
+```{r}
+# construct a dataframe containing input math scores
+# we will use to predict science score
+math_seq <- seq(from=0, to=100, by=1)
+student_data_for_fit <- data.frame(math=math_seq)
+head(student_data_for_fit)
+```
+```{r}
+fit_poly3 <- predict(polymodel3, newdata = student_data_for_fit )
+# we can store these into our student_data_for_fit dataframe
+student_data_for_fit$fit_poly3 <- fit_poly3
+head(student_data_for_fit)
+
+```
+```{r}
+plot(science~math, data=student_data, xlim=c(0,100), ylim=c(0,100))
+lines(student_data_for_fit$math, student_data_for_fit$fit_poly3)
+```
+Note that in the region of the data our predictions are sensible (increased math score means increased science score) but outside this region the cubic polynomial predicts decreasing science score with increasing math score. This shows that we need to choose an appropriate fit function shape, and take care when using our model to make predictions that our outside of the data range used to build the model.
+
+Let's look at all models:
+
+```{r}
+fit_poly1 <- predict(polymodel1, newdata = student_data_for_fit )
+fit_poly2 <- predict(polymodel2, newdata = student_data_for_fit )
+fit_poly4 <- predict(polymodel4, newdata = student_data_for_fit )
+
+student_data_for_fit$fit_poly1 <- fit_poly1
+student_data_for_fit$fit_poly2 <- fit_poly2
+student_data_for_fit$fit_poly4 <- fit_poly4
+
+head(student_data_for_fit)
+```
+```{r}
+plot(science~math, data=student_data, xlim=c(0,100), ylim=c(0,140))
+lines(student_data_for_fit$math, student_data_for_fit$fit_poly1, col=1)
+lines(student_data_for_fit$math, student_data_for_fit$fit_poly2, col=2)
+lines(student_data_for_fit$math, student_data_for_fit$fit_poly3, col=3)
+lines(student_data_for_fit$math, student_data_for_fit$fit_poly4, col=4)
+leg_labels = c("(poly1) linear",
+               "(poly2) quadratic",
+               "(poly3) cubic",
+               "(poly4) quartic")
+legend(x=0,y=140, legend=leg_labels, col=1:4, lty=1)
+```
+Its interesting to see that the quadratic fit (poly2) is very similar to the linear fit (poly1). The `poly` function uses orthogonal polynomials for fitting. This means the coefficients returned do not correspond to the standard form for a polynomial:
+
+```
+y = b0 + b1*x + b2*x^2 + b3*x^3 + b4*x^4...
+```
+
+However we can specify the formula in such a way that the fit returned uses these values. For example for a quadratic fit we add an interaction term `I()` for `math^2`:
+```{r}
+quadratic_model <- lm(science ~ math +I(math^2),data=student_data)
+summary(quadratic_model)
+```
+The coefficients here correspond to the standard polynomial form: `a + b*x + c*x^2`
+i.e.
+```
+science = 17.1 + 0.65*math + 0.00013*math^2
+```
+The small coefficient found for the quadratic term is the reason the fit is similar to the linear fit:
+```{r}
+linear_model <- lm(science ~ math,data=student_data)
+summary(linear_model)
+```
+```
+science = 16.7 + 0.67*math
+```
+Let's compare all models using the anova test. This can compare a sequence of nested models:
+```{r}
+anova(polymodel1,polymodel2,polymodel3,polymodel4)
+```
+Here the reduction seen in the size of the residuals is:
+```
+not significant                 comparing the 2nd-order to the linear model
+significant at the 0.05 level   comparing the 3rd-order to the 2nd-order model
+significant at the 0.05 level   comparing the 4th-order to the 4th-order model
+```
+Let's see about making a 5th order polynomial fit:
+
+```{r}
+polymodel5 <- lm(science ~ poly(math,5),data=student_data)
+polymodel6 <- lm(science ~ poly(math,6),data=student_data)
+
+anova(polymodel1,polymodel2,polymodel3,polymodel4,polymodel5,polymodel6)
+```
+
+Here the reduction seen in the size of the residuals is:
+```
+not significant                 comparing the 2nd-order to the linear model
+significant at the 0.05 level   comparing the 3rd-order to the 2nd-order model
+significant at the 0.05 level   comparing the 4th-order to the 3rd-order model
+not significant                 comparing the 5th-order to the 6th-order model
+not significant                 comparing the 6th-order to the 5th-order model
+```
+Therefore from the anova test result alone we see no evidence for using a 5th order polynomial to fit the math score, and would suggest our model uses a 4th order polynomial.
+
+However given the issues we see with using the 3rd and 4th order polynomials to predict scores outside the range of math scores used to build the model, and the fact that the improvement in variance was not significant at a 0.01 or 1% level, we would probably say that the linear model is most appropriate in this case to describe the relationship.
+
+
+

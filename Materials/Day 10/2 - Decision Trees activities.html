@@ -1,0 +1,383 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>decision trees</title>
+  <link rel="stylesheet" href="https://stackedit.io/style.css" />
+</head>
+
+<body class="stackedit">
+  <div class="stackedit__html"><h2 id="lab-decision-trees">Lab: Decision Trees</h2>
+<h3 id="fitting-classification-trees">Fitting Classification Trees</h3>
+<p>The  <code>tree</code>  package provides functionality for classification and regression trees.</p>
+<pre><code>library(tree)
+</code></pre>
+<p>Load the  <code>ISLR</code>  package and attach to the  <code>Carseats</code>  dataset.</p>
+<p>We are next going to convert  <code>Sales</code>  from a continuous variable to a binary one using  <a href="http://bit.ly/R_ifelse"><code>ifelse()</code></a>.</p>
+<pre><code>library(ISLR)
+Carseats$High &lt;- ifelse(Carseats$Sales &lt;= 8, "No", "Yes")
+</code></pre>
+<p>Our new variable is stored in column <code>High</code>.</p>
+<p><strong>Question.</strong> What type of column has been created. Convert it to a factor type column.</p>
+<!--&#10;```&#10;Carseats$High &lt;- factor(Carseats$High)&#10;```&#10;-->
+<p>We can fit a classification tree using  <a href="http://bit.ly/R_tree"><code>tree()</code></a>  function to model which variables allow us to predict high sales. Note we must specify we don’t want to include the actual <code>Sales</code> values in our prediction model.</p>
+<pre><code>tree.carseats &lt;- tree(High ~ . - Sales, Carseats)
+</code></pre>
+<p>We can get a summary of the fitted model.</p>
+<pre><code>summary(tree.carseats)
+</code></pre>
+<h4 id="questions">Questions</h4>
+<ol>
+<li>How many terminal nodes are in our tree?</li>
+<li>What is our misclassification rate?</li>
+<li>Does this misclassification rate refer to training or test data?</li>
+</ol>
+<!--&#10;```&#10;## &#10;## Classification tree:&#10;## tree(formula = High ~ . - Sales, data = Carseats)&#10;## Variables actually used in tree construction:&#10;## [1] &#34;ShelveLoc&#34;   &#34;Price&#34;       &#34;Income&#34;      &#34;CompPrice&#34;   &#34;Population&#34; &#10;## [6] &#34;Advertising&#34; &#34;Age&#34;         &#34;US&#34;         &#10;## Number of terminal nodes:  27 &#10;## Residual mean deviance:  0.4575 = 170.7 / 373 &#10;## Misclassification error rate: 0.09 = 36 / 400&#10;&#10;```&#10;-->
+<p>And plot the results using the  <a href="http://bit.ly/R_plot"><code>plot()</code></a>  function.</p>
+<pre><code>plot(tree.carseats)
+text(tree.carseats, pretty = 0, cex=0.5, col='red') 
+</code></pre>
+<!--&#10;![](https://altaf-ali.github.io/ISLR/chapter8/lab_files/figure-markdown_github+backtick_code_blocks+autolink_bare_uris/unnamed-chunk-6-1.png)&#10;-->
+<p>We can see the full tree in text form using:</p>
+<pre><code>print(tree.carseats)
+</code></pre>
+<!--&#10;```&#10;## node), split, n, deviance, yval, (yprob)&#10;##       * denotes terminal node&#10;## &#10;##   1) root 400 541.500 No ( 0.59000 0.41000 )  &#10;##     2) ShelveLoc: Bad,Medium 315 390.600 No ( 0.68889 0.31111 )  &#10;##       4) Price &lt; 92.5 46  56.530 Yes ( 0.30435 0.69565 )  &#10;##         8) Income &lt; 57 10  12.220 No ( 0.70000 0.30000 )  &#10;##          16) CompPrice &lt; 110.5 5   0.000 No ( 1.00000 0.00000 ) *&#10;##          17) CompPrice &gt; 110.5 5   6.730 Yes ( 0.40000 0.60000 ) *&#10;##         9) Income &gt; 57 36  35.470 Yes ( 0.19444 0.80556 )  &#10;##          18) Population &lt; 207.5 16  21.170 Yes ( 0.37500 0.62500 ) *&#10;##          19) Population &gt; 207.5 20   7.941 Yes ( 0.05000 0.95000 ) *&#10;##       5) Price &gt; 92.5 269 299.800 No ( 0.75465 0.24535 )  &#10;##        10) Advertising &lt; 13.5 224 213.200 No ( 0.81696 0.18304 )  &#10;##          20) CompPrice &lt; 124.5 96  44.890 No ( 0.93750 0.06250 )  &#10;##            40) Price &lt; 106.5 38  33.150 No ( 0.84211 0.15789 )  &#10;##              80) Population &lt; 177 12  16.300 No ( 0.58333 0.41667 )  &#10;##               160) Income &lt; 60.5 6   0.000 No ( 1.00000 0.00000 ) *&#10;##               161) Income &gt; 60.5 6   5.407 Yes ( 0.16667 0.83333 ) *&#10;##              81) Population &gt; 177 26   8.477 No ( 0.96154 0.03846 ) *&#10;##            41) Price &gt; 106.5 58   0.000 No ( 1.00000 0.00000 ) *&#10;##          21) CompPrice &gt; 124.5 128 150.200 No ( 0.72656 0.27344 )  &#10;##            42) Price &lt; 122.5 51  70.680 Yes ( 0.49020 0.50980 )  &#10;##              84) ShelveLoc: Bad 11   6.702 No ( 0.90909 0.09091 ) *&#10;##              85) ShelveLoc: Medium 40  52.930 Yes ( 0.37500 0.62500 )  &#10;##               170) Price &lt; 109.5 16   7.481 Yes ( 0.06250 0.93750 ) *&#10;##               171) Price &gt; 109.5 24  32.600 No ( 0.58333 0.41667 )  &#10;##                 342) Age &lt; 49.5 13  16.050 Yes ( 0.30769 0.69231 ) *&#10;##                 343) Age &gt; 49.5 11   6.702 No ( 0.90909 0.09091 ) *&#10;##            43) Price &gt; 122.5 77  55.540 No ( 0.88312 0.11688 )  &#10;##              86) CompPrice &lt; 147.5 58  17.400 No ( 0.96552 0.03448 ) *&#10;##              87) CompPrice &gt; 147.5 19  25.010 No ( 0.63158 0.36842 )  &#10;##               174) Price &lt; 147 12  16.300 Yes ( 0.41667 0.58333 )  &#10;##                 348) CompPrice &lt; 152.5 7   5.742 Yes ( 0.14286 0.85714 ) *&#10;##                 349) CompPrice &gt; 152.5 5   5.004 No ( 0.80000 0.20000 ) *&#10;##               175) Price &gt; 147 7   0.000 No ( 1.00000 0.00000 ) *&#10;##        11) Advertising &gt; 13.5 45  61.830 Yes ( 0.44444 0.55556 )  &#10;##          22) Age &lt; 54.5 25  25.020 Yes ( 0.20000 0.80000 )  &#10;##            44) CompPrice &lt; 130.5 14  18.250 Yes ( 0.35714 0.64286 )  &#10;##              88) Income &lt; 100 9  12.370 No ( 0.55556 0.44444 ) *&#10;##              89) Income &gt; 100 5   0.000 Yes ( 0.00000 1.00000 ) *&#10;##            45) CompPrice &gt; 130.5 11   0.000 Yes ( 0.00000 1.00000 ) *&#10;##          23) Age &gt; 54.5 20  22.490 No ( 0.75000 0.25000 )  &#10;##            46) CompPrice &lt; 122.5 10   0.000 No ( 1.00000 0.00000 ) *&#10;##            47) CompPrice &gt; 122.5 10  13.860 No ( 0.50000 0.50000 )  &#10;##              94) Price &lt; 125 5   0.000 Yes ( 0.00000 1.00000 ) *&#10;##              95) Price &gt; 125 5   0.000 No ( 1.00000 0.00000 ) *&#10;##     3) ShelveLoc: Good 85  90.330 Yes ( 0.22353 0.77647 )  &#10;##       6) Price &lt; 135 68  49.260 Yes ( 0.11765 0.88235 )  &#10;##        12) US: No 17  22.070 Yes ( 0.35294 0.64706 )  &#10;##          24) Price &lt; 109 8   0.000 Yes ( 0.00000 1.00000 ) *&#10;##          25) Price &gt; 109 9  11.460 No ( 0.66667 0.33333 ) *&#10;##        13) US: Yes 51  16.880 Yes ( 0.03922 0.96078 ) *&#10;##       7) Price &gt; 135 17  22.070 No ( 0.64706 0.35294 )  &#10;##        14) Income &lt; 46 6   0.000 No ( 1.00000 0.00000 ) *&#10;##        15) Income &gt; 46 11  15.160 Yes ( 0.45455 0.54545 ) *&#10;&#10;```&#10;-->
+<p>You can examine the first split by looking at the following rows:</p>
+<pre><code>&gt; print(tree.carseats)
+node), split, n, deviance, yval, (yprob)
+      * denotes terminal node
+
+  1) root 400 541.500 No ( 0.59000 0.41000 )  
+    2) ShelveLoc: Bad,Medium 315 390.600 No ( 0.68889 0.31111 )  
+    3) ShelveLoc: Good 85  90.330 Yes ( 0.22353 0.77647 )  
+</code></pre>
+<p>Let’s see where these numbers come from:</p>
+
+<table>
+<thead>
+<tr>
+<th><code>ID</code></th>
+<th><code>branch</code></th>
+<th><code>n values</code></th>
+<th><code>deviance</code></th>
+<th><code>prediction</code></th>
+<th><code>(prob_No prob_Yes)</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>root</code></td>
+<td><code>400</code></td>
+<td><code>541.500</code></td>
+<td><code>No</code></td>
+<td><code>( 0.59000 0.41000 )</code></td>
+</tr>
+</tbody>
+</table><p>The <code>root</code> node contains all the data. Check that the full dataset has <code>400</code> rows.</p>
+<p>The probability of a randomly selected row from this node being of <code>High=="No"</code> is equal to the number or <code>"No"</code> rows in the node divided by the total number of rows.</p>
+<p><strong>Questions</strong>:</p>
+<ol>
+<li>
+<p>Check that this calculation gives the result <code>0.59</code>, and that the probability of a <code>"Yes"</code> is <code>0.41</code>.</p>
+</li>
+<li>
+<p>The deviance for a node is the sum of</p>
+<p><code>-2*N_k*log(prob_k)</code></p>
+<p>for all k classes in the node. Check that in this case the sum over <code>prob_No</code><br>
+and <code>prob_Yes</code> in the <code>root</code> node is <code>541.500</code>.</p>
+</li>
+<li>
+<p>Why is the prediction for the <code>root</code> node set to <code>No</code>?</p>
+</li>
+</ol>
+<!--&#10;The prediction is made on the most probable class for the node.&#10;-->
+<ol start="4">
+<li>Would a high purity node have high or low deviance?</li>
+</ol>
+<!--&#10;A high purity node has low deviance score.&#10;-->
+<ol start="5">
+<li>What does a deviance of zero indicate? (hint. Look the rows in the printed tree with deviance equals zero.)</li>
+</ol>
+<!--&#10;Zero deviance means all entries in a node are of a single class.&#10;-->
+<ol start="6">
+<li>How do the following <code>minsize</code> and <code>mindev</code> arguments change the tree produced?</li>
+</ol>
+<pre><code>tree.carseats &lt;- tree(High ~ . - Sales, Carseats,
+                      minsize=1, mindev=0)
+</code></pre>
+<!--&#10;They change the stopping criteria for building the tree, and a bigger tree is grown.&#10;-->
+<h3 id="pruning-decision-trees">Pruning Decision Trees</h3>
+<p>We are going to explore how pruning can optimise our tree performance.<br>
+In order to test the resulting model we will split <code>Carseats</code>  into a training and test subsets using  <a href="http://bit.ly/R_plot"><code>sample()</code></a>.</p>
+<pre><code>set.seed(2)
+train &lt;- sample(1:nrow(Carseats), 200)
+Carseats.test &lt;- Carseats[-train, ]
+</code></pre>
+<p>Note that we can pass a row selection into the <code>subset=</code> argument when we call the model function, so that we do not have to create a separate data frame.</p>
+<pre><code>tree.carseats &lt;- tree(High ~ . - Sales, Carseats, subset = train)
+</code></pre>
+<pre><code>tree.pred &lt;- predict(tree.carseats, Carseats.test, type = "class")
+table(predicted=tree.pred, actual=Carseats.test$High)
+</code></pre>
+<!--&#10;```&#10;##          High.test&#10;## tree.pred No Yes&#10;##       No  86  27&#10;##       Yes 30  57&#10;&#10;```&#10;-->
+<p><strong>Question:</strong> What is the misclassification rate for this tree?</p>
+<!--&#10;```&#10;57/200 = 0.285&#10;```&#10;-->
+<p>Next, we consider whether pruning the tree might lead to improved results, and use cross-validation with  <a href="http://bit.ly/R_cv_tree"><code>cv.tree()</code></a>  to see the best level of pruning to minimize the error rate.</p>
+<p>Look in the help documentation for <code>cv.tree</code> what type of cross-validation is carried out?</p>
+<p>The function cv.tree() performs cross-validation in order to determine the optimal level of tree complexity; and cost complexity pruning is used in order to select a sequence of trees for consideration.</p>
+<p>We use the argument FUN=prune.misclass in order to indicate that we want the classification error rate to guide the cross-validation and pruning process, rather than the default for the cv.tree() function, which is deviance.</p>
+<p>The cv.tree() function reports the number of terminal nodes of each tree con- sidered (size) as well as the corresponding error rate and the value of the cost-complexity parameter used k, (which corresponds to α in the ISLR textbook).</p>
+<p>Let’s run the analysis:</p>
+<pre><code>set.seed(3)
+cv.carseats &lt;- cv.tree(tree.carseats, FUN = prune.misclass)
+</code></pre>
+<p>We can look at the information stored we can access in the <code>cv</code> result:</p>
+<pre><code>names(cv.carseats)
+</code></pre>
+<pre><code>## [1] "size"   "dev"    "k"      "method"
+</code></pre>
+<pre><code>cv.carseats  
+</code></pre>
+<pre><code>$size
+[1] 19 17 14 13  9  7  3  2  1
+
+$dev
+[1] 55 55 53 52 50 56 69 65 80
+
+$k
+[1]       -Inf  0.0000000  0.6666667  1.0000000
+[5]  1.7500000  2.0000000  4.2500000  5.0000000
+[9] 23.0000000
+
+$method
+[1] "misclass"
+
+attr(,"class")
+[1] "prune"         "tree.sequence"
+</code></pre>
+<p>Note that, despite the name, dev corresponds to the cross-validation error rate in this instance. The tree with 9 terminal nodes results in the lowest cross-validation error rate, with 50 cross-validation errors.</p>
+<p>To illustrate the results we plot the deviance as a function of both <code>size</code> of tree (number of nodes), and tree penalty <code>k</code>.</p>
+<pre><code>par(mfrow = c(1, 2))
+plot(cv.carseats$size, cv.carseats$dev, type = "b")
+plot(cv.carseats$k, cv.carseats$dev, type = "b")
+</code></pre>
+<!--&#10;![](https://altaf-ali.github.io/ISLR/chapter8/lab_files/figure-markdown_github+backtick_code_blocks+autolink_bare_uris/unnamed-chunk-10-1.png)&#10;-->
+<p>We can now examine the best performing tree.</p>
+<p>To do this we need to prune the tree  using the optimum number of nodes obtained from cross-validation above. We prune the tree with  <a href="http://bit.ly/R_prune_tree"><code>prune.misclass()</code></a>  which is simply a short-hand for calling  <a href="http://bit.ly/R_prune_tree"><code>prune.tree()</code></a>  with  <code>method = misclass</code>.</p>
+<pre><code>prune.carseats &lt;- prune.misclass(tree.carseats, best = 9)
+plot(prune.carseats)
+text(prune.carseats, pretty = 0)
+</code></pre>
+<!--&#10;![](https://altaf-ali.github.io/ISLR/chapter8/lab_files/figure-markdown_github+backtick_code_blocks+autolink_bare_uris/unnamed-chunk-11-1.png)&#10;-->
+<p>Now, we can use  <a href="http://bit.ly/R_predict"><code>predict()</code></a>  to see how our chosen model performs on data we set aside for testing.</p>
+<pre><code>tree.pred &lt;- predict(prune.carseats, Carseats.test, type = "class")
+</code></pre>
+<p><strong>Questions</strong></p>
+<ol>
+<li>Create a confusion matrix for the results (table of predictions <em>vs</em> actual values).</li>
+<li>What is the misclassification rate for the pruned tree applied to the test data?</li>
+</ol>
+<!--&#10;```&#10;table(predicted = tree.pred, actual = Carseats$High)&#10;##          High.test&#10;## tree.pred No Yes&#10;##       No  94  24&#10;##       Yes 22  60&#10;&#10;```&#10;&#10;```&#10;(22 + 24)/200&#10;&#10;```&#10;&#10;```&#10;## [1] 0.33&#10;&#10;```&#10;-->
+<p>We can see the effects of the number of node on the classification error rate by changing the  <code>best</code>argument to chose the pruned tree that has 15 nodes remaining:</p>
+<pre><code>prune.carseats &lt;- prune.misclass(tree.carseats, best = 15)
+plot(prune.carseats)
+text(prune.carseats, pretty = 0)
+
+</code></pre>
+<!--&#10;![](https://altaf-ali.github.io/ISLR/chapter8/lab_files/figure-markdown_github+backtick_code_blocks+autolink_bare_uris/unnamed-chunk-13-1.png)&#10;-->
+<p>You should find that the misclassification rate for this tree is 0.26.</p>
+<p><strong>Challenge</strong> Write a for loop that runs over the sizes stored in cv.carseats$size. For each tree size, use <code>prune.misclass</code> to create the corresponding decision tree, and <code>predict</code> to measure the performance on the test data set in terms to cases misclassified.</p>
+<p>Overlay the results onto the plot:</p>
+<pre><code>plot(cv.carseats$size, cv.carseats$dev, type = "b")
+</code></pre>
+<!--&#10;```&#10;tree.pred &lt;- predict(prune.carseats, Carseats.test, type = &#34;class&#34;)&#10;table(tree.pred, High.test)&#10;&#10;```&#10;&#10;```&#10;##          High.test&#10;## tree.pred No Yes&#10;##       No  86  22&#10;##       Yes 30  62&#10;&#10;```&#10;&#10;```&#10;(86 + 62)/200&#10;&#10;```&#10;&#10;```&#10;## [1] 0.74&#10;&#10;```&#10;-->
+<h2 id="fitting-regression-trees">Fitting Regression Trees</h2>
+<p>The  <code>tree</code>  package also provides functionality to fit regression trees. Let’s load the  <code>MASS</code>  package and fit a regression tree on the  <code>Boston</code>  housing values dataset.</p>
+<pre><code>library(MASS)
+set.seed(1)
+train &lt;- sample(1:nrow(Boston), floor(nrow(Boston)/2) )
+tree.boston &lt;- tree(medv ~ ., Boston, subset = train)
+summary(tree.boston)
+
+</code></pre>
+<p><strong>Question:</strong> How many entries are in the training and test sets?</p>
+<!--&#10;```&#10;253 in training and 253 in test&#10;```&#10;-->
+<pre><code>## 
+## Regression tree:
+## tree(formula = medv ~ ., data = Boston, subset = train)
+## Variables actually used in tree construction:
+## [1] "lstat" "rm"    "dis"  
+## Number of terminal nodes:  8 
+## Residual mean deviance:  12.65 = 3099 / 245 
+## Distribution of residuals:
+##      Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+## -14.10000  -2.04200  -0.05357   0.00000   1.96000  12.60000
+</code></pre>
+<p>The command <code>resid(tree.boston)</code> gives us the residuals for the training data. For each node in the tree this is the difference between the entry and the predicted value (based on the mean value of entries the node. )</p>
+<p><strong>Question</strong></p>
+<ol>
+<li>What is the total deviance of this tree? (This is given by the sum of the squared residuals).</li>
+<li>Check your calculation agrees with the result of <code>summary(tree.boston)</code>.<br>
+Note to find the mean deviance we divide by the degrees of freedom. In this case this is the number of values in the training data minus the number of nodes.</li>
+</ol>
+<p>Next we plot the results.</p>
+<pre><code>plot(tree.boston)
+text(tree.boston, pretty = 0)
+</code></pre>
+<!--&#10;![](https://altaf-ali.github.io/ISLR/chapter8/lab_files/figure-markdown_github+backtick_code_blocks+autolink_bare_uris/unnamed-chunk-15-1.png)&#10;-->
+<p>Just like classification trees, we can run cross-validation on regression trees with the  <a href="http://bit.ly/R_cv_tree"><code>cv.tree()</code></a>function.</p>
+<pre><code>cv.boston &lt;- cv.tree(tree.boston)
+plot(cv.boston$size, cv.boston$dev, type = "b")
+</code></pre>
+<!--&#10;![](https://altaf-ali.github.io/ISLR/chapter8/lab_files/figure-markdown_github+backtick_code_blocks+autolink_bare_uris/unnamed-chunk-16-1.png)&#10;-->
+<p><strong>Question</strong></p>
+<ol>
+<li>Which is the best performing tree as predicted from cross validation? (You may need to look at the stored values in <code>cv.boston</code> to check.)</li>
+<li>Find this tree and plot it.<br>
+Hint. to prune a regression tree down to <code>n</code> nodes use a command like:<pre><code>prune.boston &lt;- prune.tree(tree.boston, best = n)
+</code></pre>
+</li>
+</ol>
+ <!--&#10;We use  [`prune.tree()`](http://bit.ly/R_prune_tree)  to prune regression trees and plot the results.&#10;&#10;```&#10;prune.boston &lt;- prune.tree(tree.boston, best = 5)&#10;plot(prune.boston)&#10;text(prune.boston, pretty = 0)&#10;&#10;```&#10;&#10;![](https://altaf-ali.github.io/ISLR/chapter8/lab_files/figure-markdown_github+backtick_code_blocks+autolink_bare_uris/unnamed-chunk-17-1.png)&#10;-->
+<p>In keeping with the cross-validation results, we use this tree to make predictions on the test set.</p>
+<pre><code>yhat &lt;- predict(prune.boston, newdata = Boston[-train, ])
+</code></pre>
+<p>To illustrate the fit we can make a plot of actual vs predicted values. (We add a line y=x, to show the ideal case where predictions match the actual values).</p>
+<pre><code>boston.test &lt;- Boston[-train, "medv"]
+plot(yhat, boston.test)
+abline(0, 1)
+</code></pre>
+<!--&#10;![](https://altaf-ali.github.io/ISLR/chapter8/lab_files/figure-markdown_github+backtick_code_blocks+autolink_bare_uris/unnamed-chunk-18-1.png)&#10;-->
+<p><strong>Question</strong></p>
+<ul>
+<li>Show that the mean squared error measured on the test data is <code>25.04</code>.</li>
+</ul>
+<!--&#10; Check if this result changes if we overwrite the `medv` column with `log(medv)` to store on the log house prices. Can you explain your finding?&#10;```&#10;Boston$medv &lt;- log(Boston$medv)&#10;```&#10;**Important!**&#10;Now reload the Boston data to resest the `medv` column values using:&#10;```&#10;data(Boston)&#10;```&#10;-->
+<!--&#10;```&#10;mean((yhat - boston.test)^2)&#10;```&#10;&#10;```&#10;## [1] 25.04559&#10;&#10;```&#10;-->
+<p><strong>Question</strong></p>
+<ul>
+<li>Adjust the tree construction model to lower the stopping criteria for building the tree:<pre><code>tree.boston &lt;- tree(medv ~ ., Boston, subset = train,
+                      minsize = 1, mindev = 0
+</code></pre>
+</li>
+<li>Repeat the cross validation study and see which tree gives best performance.</li>
+</ul>
+<p><strong>Question</strong></p>
+<ul>
+<li>Compare this method to the equivalent linear regression model.<br>
+<code>lm.boston &lt;- lm(medv ~ ., Boston, subset = train)</code><br>
+Is the MSE measured on test data by this method better or worse than the decision tree method?</li>
+</ul>
+<p><strong>Question</strong></p>
+<ul>
+<li>Do you think transforming <code>medv</code> to log(<code>medv</code>) change the performance of:<br>
+i) the <code>tree</code>method?<br>
+ii) the <code>lm</code> method?<br>
+<em>As an extension you could try this out…</em></li>
+</ul>
+<h2 id="bagging">Bagging</h2>
+<p>Here we apply bagging and random forests to the Boston data, using the randomForest package in R. The exact results obtained in this section may<br>
+depend on the version of R and the version of the <code>randomForest</code> package installed on your computer.</p>
+<p>We will use the  <code>randomForest</code>  package to apply bagging and random forest on  <code>Boston</code>  housing values datasets.</p>
+<p>Load the <code>randomForest</code> package. If you get an error you may need to install it using <code>install.packages()</code>.</p>
+<pre><code>library(randomForest)
+</code></pre>
+<pre><code>randomForest 4.6-14
+Type rfNews() to see new features/changes/bug fixes.
+</code></pre>
+<p>Recall that bagging is simply a special case of a random forest with <code>m = p</code>. Therefore, the <code>randomForest()</code> function can be used to perform both random forests and bagging.</p>
+<p><strong>Question</strong> Write an R command to allow you to check that there are 13 predictors we can use to predict <code>medv</code> in the <code>Boston</code> dataset.</p>
+<pre><code>set.seed(1)
+p &lt;- 13
+bag.boston &lt;- randomForest(medv ~ ., data = Boston, subset = train, mtry = p, importance = TRUE)
+</code></pre>
+<p>Look at the output using:</p>
+<pre><code>bag.boston
+</code></pre>
+<p><strong>Questions</strong></p>
+<p><strong>1.</strong> How many bootstrapped datasets and trees have been generated?</p>
+<!--&#10;```&#10;## &#10;## Call:&#10;##  randomForest(formula = medv ~ ., data = Boston, mtry = 13, importance = TRUE,      subset = train) &#10;##                Type of random forest: regression&#10;##                      Number of trees: 500&#10;## No. of variables tried at each split: 13&#10;## &#10;##           Mean of squared residuals: 11.02509&#10;##                     % Var explained: 86.65&#10;&#10;```&#10;-->
+<p><strong>2.</strong> We can retrieve individual trees from the bagged set using a command like:</p>
+<pre><code>bagged.tree &lt;- getTree(bag.boston, k = 1, labelVar = TRUE)
+</code></pre>
+<p>This is stored in a different format to the results of the <code>tree</code> command but we can count the number of nodes, which will have an entry of <code>-1</code> in the <code>status</code> column, i.e. <code>bagged.tree$status==-1</code></p>
+<p><strong>i.</strong> How many nodes are in the bagged tree we have loaded?<br>
+<strong>ii.</strong> How does this compare to the number of nodes produced by building a tree using the <code>tree</code> function?<br>
+<strong>iii.</strong>  Explain your findings.</p>
+<p>Next, we look at how well the model fits test data. Write code that can produce the following plot of actual value <em>vs</em> predicted value.</p>
+<!--&#10;```&#10;yhat.bag &lt;- predict(bag.boston, newdata = Boston[-train, ])&#10;plot(yhat.bag, boston.test)&#10;abline(0, 1)&#10;```&#10;-->
+<p><img src="https://altaf-ali.github.io/ISLR/chapter8/lab_files/figure-markdown_github+backtick_code_blocks+autolink_bare_uris/unnamed-chunk-20-1.png" alt=""></p>
+<p><strong>Question</strong> Calculate the MSE on the test data and show it is equal to <code>13.5</code>.</p>
+<!--&#10;```&#10;mean((yhat.bag - boston.test)^2)&#10;```&#10;&#10;```&#10;## [1] 13.47349&#10;&#10;```&#10;-->
+<p>We can change the number of trees using the  <code>ntree</code>  argument to the  <a href="http://bit.ly/R_random_forest"><code>randomForest()</code></a>  function, e.g.</p>
+<pre><code>randomForest(medv ~ ., data = Boston, 
+  subset = train, mtry = p, importance = TRUE,
+  ntrees = ...  )
+</code></pre>
+<p><strong>Question</strong> What is the MSE on the test data if we only use 25 bagged trees?</p>
+<!--&#10;```&#10;bag.boston &lt;- randomForest(medv ~ ., data = Boston, subset = train, mtry = 13, ntree = 25)&#10;yhat.bag &lt;- predict(bag.boston, newdata = Boston[-train, ])&#10;mean((yhat.bag - boston.test)^2)&#10;&#10;```&#10;&#10;```&#10;## [1] 13.43068&#10;```&#10;-->
+<h2 id="random-forest">Random Forest</h2>
+<p>We can also change the number of variables sampled as candidates by the random forest algorithm using the  <code>mtry</code>  argument. We used all 13 variables above, but let’s limit the number of predictors used for each tree using  <code>mtry = 6</code>   to build a <strong>random forest</strong> model.</p>
+<pre><code>set.seed(1)
+rf.boston &lt;- randomForest(medv ~ ., data = Boston, subset = train, mtry = 6, importance = TRUE)
+</code></pre>
+<p><strong>Question</strong> Has using the random forest method improved our MSE on test data?</p>
+<!-- &#10;Yes!&#10;```&#10;## [1] 11.48022&#10;&#10;```&#10;-->
+<p>We can look at the variable importance measure using the  <a href="http://bit.ly/R_importance"><code>importance()</code></a>  function.</p>
+<pre><code>importance(rf.boston)
+</code></pre>
+<p>Two measures of variable importance are reported. The former is based upon the mean decrease of accuracy in predictions on the out of bag samples when a given variable is excluded from the model. The latter is a measure of the total decrease in node impurity that results from splits over that variable, averaged over all trees.</p>
+<p>In the case of regression trees, the node impurity is measured by the training RSS, and for classification trees by the deviance.</p>
+<p>Plots of these importance measures can be produced using the varImpPlot() function.</p>
+<!--&#10;```&#10;##           %IncMSE IncNodePurity&#10;## crim    12.547772    1094.65382&#10;## zn       1.375489      64.40060&#10;## indus    9.304258    1086.09103&#10;## chas     2.518766      76.36804&#10;## nox     12.835614    1008.73703&#10;## rm      31.646147    6705.02638&#10;## age      9.970243     575.13702&#10;## dis     12.774430    1351.01978&#10;## rad      3.911852      93.78200&#10;## tax      7.624043     453.19472&#10;## ptratio 12.008194     919.06760&#10;## black    7.376024     358.96935&#10;## lstat   27.666896    6927.98475&#10;&#10;```&#10;-->
+<pre><code>varImpPlot(rf.boston)
+</code></pre>
+<p><strong>Question</strong> Which variables had most/least influence in terms of the random forest model performance?</p>
+<!--&#10;&#10;![](https://altaf-ali.github.io/ISLR/chapter8/lab_files/figure-markdown_github+backtick_code_blocks+autolink_bare_uris/unnamed-chunk-24-1.png)&#10;-->
+<p><strong>Activity</strong></p>
+<ul>
+<li>Make a plot showing show MSE performance for bagging, depends on the number of bagged trees. Include trendlines for performance on training and test data. Hint use a <code>for</code> loop and change ntrees looping over the following values:</li>
+</ul>
+<pre><code>n_vals = c(1,2,5,10,15,20,25,30,40,50,60,80,100,120,160,200,250,500,1000)
+</code></pre>
+<ul>
+<li>
+<p>Repeat the analysis for random forests with <code>m=p/2</code> and <code>m=floor(sqrt(p))</code></p>
+</li>
+<li>
+<p>Which analysis do you think performs best in this case?</p>
+</li>
+</ul>
+<p><strong>Extension</strong></p>
+<p>In the first exercise, a classification tree was applied to the <code>Carseats</code> data set after converting Sales into a qualitative response variable.</p>
+<p>Now try to predict <code>Sales</code> using regression trees and related approaches, treating the response as a quantitative variable.</p>
+<ol>
+<li>
+<p>Split the data set into a training set and a test set.</p>
+</li>
+<li>
+<p>Fit a regression tree to the training set. Plot the tree, and inter- pret the results. What test MSE do you obtain?</p>
+</li>
+<li>
+<p>Use cross-validation in order to determine the optimal level of tree complexity. Does pruning the tree improve the test MSE?</p>
+</li>
+<li>
+<p>Use the bagging approach in order to analyze this data. What test MSE do you obtain? Use the importance() function to determine which variables are most important.</p>
+</li>
+<li>
+<p>Use random forests to analyze this data. What test MSE do you obtain? Use the importance() function to determine which variables are most important.</p>
+</li>
+<li>
+<p>Investigate the effect of changing m, the number of variables considered at each split, on the error rate obtained.</p>
+</li>
+</ol>
+<p><strong>Challenge</strong><br>
+<em>For students with experience of coding functions</em><br>
+Write your own function to perform the bagged decision trees method.</p>
+</div>
+</body>
+
+</html>
